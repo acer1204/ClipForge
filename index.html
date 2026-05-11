@@ -1,0 +1,1198 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ClipForge</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #0f0f0f;
+    color: #e0e0e0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── Navbar ── */
+  nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    height: 56px;
+    background: #1a1a1a;
+    border-bottom: 1px solid #2a2a2a;
+    flex-shrink: 0;
+  }
+  .nav-logo { display: flex; align-items: center; gap: 10px; }
+  .nav-logo svg { color: #6366f1; }
+  .nav-logo span { font-size: 17px; font-weight: 700; color: #fff; }
+  .btn-upload {
+    display: flex; align-items: center; gap: 6px;
+    padding: 0 16px; height: 36px;
+    background: #6366f1; color: #fff;
+    border: none; border-radius: 8px;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    transition: background .15s;
+  }
+  .btn-upload:hover { background: #4f46e5; }
+  #file-input { display: none; }
+
+  /* ── Main layout ── */
+  .main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* ── Left: video + timeline ── */
+  .left {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  .video-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #111;
+    gap: 12px;
+    padding: 16px;
+    overflow: hidden;
+  }
+
+  .video-wrapper {
+    position: relative;
+    background: #000;
+    border-radius: 8px;
+    overflow: hidden;
+    max-width: 100%;
+    max-height: calc(100% - 60px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  video {
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+    border-radius: 8px;
+  }
+
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    color: #444;
+  }
+  .empty-state svg { width: 64px; height: 64px; }
+  .empty-state p { font-size: 14px; }
+
+  /* ── Video controls ── */
+  .video-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    max-width: 860px;
+  }
+  .btn-play {
+    width: 36px; height: 36px;
+    border-radius: 50%; border: none;
+    background: #6366f1; color: #fff;
+    cursor: pointer; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    transition: background .15s;
+  }
+  .btn-play:hover { background: #4f46e5; }
+  .time-display { font-size: 12px; color: #888; white-space: nowrap; min-width: 95px; }
+
+  .progress-bar {
+    flex: 1; height: 4px; background: #2a2a2a;
+    border-radius: 2px; cursor: pointer; position: relative;
+  }
+  .progress-fill {
+    height: 100%; background: #6366f1;
+    border-radius: 2px; pointer-events: none;
+    transition: width .1s linear;
+  }
+
+  /* ── Timeline ── */
+  .timeline-section {
+    height: 150px;
+    background: #141414;
+    border-top: 1px solid #2a2a2a;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+  }
+  .tl-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    height: 36px;
+    flex-shrink: 0;
+  }
+  .tl-title { font-size: 12px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: .05em; }
+  .btn-add-split {
+    display: flex; align-items: center; gap: 5px;
+    padding: 0 10px; height: 26px;
+    background: transparent; color: #6366f1;
+    border: 1px solid #6366f1; border-radius: 6px;
+    font-size: 12px; font-weight: 500; cursor: pointer;
+    transition: background .15s;
+  }
+  .btn-add-split:hover { background: #6366f110; }
+  .btn-add-split:disabled { opacity: .35; cursor: not-allowed; }
+
+  .tl-track {
+    flex: 1;
+    padding: 0 16px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .tl-ruler {
+    height: 18px;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .tl-ruler span {
+    position: absolute;
+    font-size: 10px;
+    color: #555;
+    transform: translateX(-50%);
+  }
+
+  /* the coloured bar */
+  .tl-bar {
+    position: relative;
+    flex: 1;
+    background: #1e1e1e;
+    border-radius: 6px;
+    overflow: visible;
+    cursor: crosshair;
+  }
+
+  /* coloured segment regions */
+  .seg-region {
+    position: absolute;
+    top: 0; bottom: 0;
+    border-radius: 4px;
+    opacity: .55;
+    pointer-events: none;
+  }
+
+  /* playhead */
+  .playhead {
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 2px;
+    background: #fff;
+    pointer-events: none;
+    z-index: 10;
+  }
+  .playhead::before {
+    content: '';
+    position: absolute;
+    top: 0; left: -5px;
+    width: 12px; height: 10px;
+    background: #fff;
+    clip-path: polygon(0 0, 100% 0, 50% 100%);
+  }
+
+  /* split point markers */
+  .split-marker {
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 6px;
+    margin-left: -3px;
+    background: #f59e0b;
+    border-radius: 3px;
+    cursor: ew-resize;
+    z-index: 35;      /* must be above trim handles (25) */
+    transition: background .1s;
+  }
+  .split-marker:hover { background: #fbbf24; }
+  .split-marker.dragging { background: #fde68a; }
+
+  /* trim IN / OUT handles */
+  .trim-handle {
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 8px;
+    border-radius: 3px;
+    z-index: 25;      /* below split markers (35) */
+    cursor: ew-resize;
+  }
+  .trim-handle.trim-in  { background: #10b981; margin-left: -4px; }
+  .trim-handle.trim-out { background: #ef4444; margin-left: -4px; }
+  .trim-handle::before {
+    content: attr(data-label);
+    position: absolute;
+    top: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 9px;
+    font-weight: 700;
+    color: #fff;
+    background: inherit;
+    padding: 1px 5px;
+    border-radius: 3px;
+    white-space: nowrap;
+  }
+  /* excluded (trimmed-out) zone overlay */
+  .trim-exclude {
+    position: absolute;
+    top: 0; bottom: 0;
+    background: rgba(0,0,0,.55);
+    pointer-events: none;
+    z-index: 15;
+    border-radius: 4px;
+  }
+
+  /* X button on split marker */
+  .split-marker-x {
+    position: absolute;
+    top: -18px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 16px; height: 16px;
+    background: #ef4444; color: #fff;
+    border: none; border-radius: 50%;
+    font-size: 10px; line-height: 16px; text-align: center;
+    cursor: pointer; display: none;
+    z-index: 30;
+  }
+  .split-marker:hover .split-marker-x { display: block; }
+
+  /* toggle switch */
+  .seg-toggle { position:relative; width:34px; height:19px; flex-shrink:0; }
+  .seg-toggle input { opacity:0; width:0; height:0; position:absolute; }
+  .seg-toggle-slider {
+    position:absolute; inset:0; background:#3a3a3a;
+    border-radius:10px; cursor:pointer; transition:background .2s;
+  }
+  .seg-toggle-slider::before {
+    content:''; position:absolute; left:3px; top:3px;
+    width:13px; height:13px; background:#888;
+    border-radius:50%; transition:transform .2s, background .2s;
+  }
+  .seg-toggle input:checked + .seg-toggle-slider { background:#6366f120; }
+  .seg-toggle input:checked + .seg-toggle-slider::before { transform:translateX(15px); background:#6366f1; }
+
+  /* disabled segment card */
+  .seg-card.seg-disabled { opacity:.38; }
+
+  /* play-segment button */
+  .btn-seg-play {
+    width:30px; height:30px; border-radius:6px;
+    border:none; background:#1a2a1a; color:#10b981;
+    cursor:pointer; display:flex; align-items:center; justify-content:center;
+    transition:background .15s; flex-shrink:0;
+  }
+  .btn-seg-play:hover { background:#1e3a1e; }
+  .btn-seg-play.playing { background:#1e3a1e; color:#6ee7b7; }
+
+  /* delete button on segment card */
+  .btn-del-seg {
+    width: 30px; height: 30px; border-radius: 6px;
+    border: none; background: #2a1a1a; color: #ef4444;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: background .15s; flex-shrink: 0;
+  }
+  .btn-del-seg:hover { background: #3d1a1a; }
+
+  /* frame preview tooltip */
+  .frame-preview {
+    position: fixed;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    background: #1e1e1e;
+    border: 1px solid #3a3a3a;
+    border-radius: 10px;
+    padding: 8px 8px 6px;
+    box-shadow: 0 8px 32px #000a;
+    pointer-events: none;
+    z-index: 9999;
+  }
+  .frame-preview canvas {
+    width: 160px; height: 90px;
+    border-radius: 4px;
+    display: block;
+  }
+  .frame-preview .fp-time {
+    font-size: 12px; font-weight: 700; color: #f59e0b;
+  }
+  .frame-preview .fp-hint {
+    font-size: 10px; color: #666;
+  }
+  .frame-preview::after {
+    content: '';
+    display: block;
+    width: 10px; height: 6px;
+    margin: 2px auto 0;
+    background: #1e1e1e;
+    clip-path: polygon(0 0, 100% 0, 50% 100%);
+  }
+
+  /* ── Right panel ── */
+  .right-panel {
+    width: 300px;
+    flex-shrink: 0;
+    background: #141414;
+    border-left: 1px solid #2a2a2a;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .rp-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 16px; height: 52px; flex-shrink: 0;
+    border-bottom: 1px solid #2a2a2a;
+  }
+  .rp-title { font-size: 14px; font-weight: 700; color: #fff; }
+  .seg-badge {
+    padding: 2px 10px; background: #6366f1;
+    border-radius: 20px; font-size: 11px; font-weight: 600; color: #fff;
+  }
+  .seg-list {
+    flex: 1; overflow-y: auto; padding: 10px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .seg-list::-webkit-scrollbar { width: 4px; }
+  .seg-list::-webkit-scrollbar-track { background: transparent; }
+  .seg-list::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+
+  .seg-card {
+    display: flex; align-items: center; gap: 10px;
+    background: #1e1e1e; border-radius: 8px;
+    padding: 10px; border: 1px solid transparent;
+    transition: border-color .15s;
+  }
+  .seg-card.active { border-color: #6366f1; }
+  .seg-num {
+    width: 28px; height: 28px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; color: #fff; flex-shrink: 0;
+  }
+  .seg-info { flex: 1; }
+  .seg-name-input {
+    width: 100%; background: #2a2a2a; border: 1px solid #3a3a3a;
+    border-radius: 4px; color: #fff; font-size: 12px; font-weight: 600;
+    padding: 3px 6px; outline: none; transition: border-color .15s;
+  }
+  .seg-name-input:focus { border-color: #6366f1; }
+  .seg-time { font-size: 11px; color: #888; margin-top: 3px; }
+  .seg-dur { font-size: 11px; margin-top: 2px; }
+  .btn-dl {
+    width: 30px; height: 30px; border-radius: 6px;
+    border: none; background: #2a2a2a; color: #aaa;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: background .15s, color .15s; flex-shrink: 0;
+  }
+  .btn-dl:hover { background: #3a3a3a; color: #fff; }
+  .btn-dl:disabled { opacity: .3; cursor: not-allowed; }
+
+  .empty-seg {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    color: #444; gap: 8px; font-size: 13px; text-align: center; padding: 20px;
+  }
+
+  .rp-footer {
+    padding: 10px 12px;
+    border-top: 1px solid #2a2a2a;
+    display: flex; flex-direction: column; gap: 6px;
+    flex-shrink: 0;
+  }
+  .btn-split {
+    width: 100%; height: 40px;
+    background: #6366f1; color: #fff;
+    border: none; border-radius: 8px;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    transition: background .15s;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .btn-split:hover:not(:disabled) { background: #4f46e5; }
+  .btn-split:disabled { opacity: .4; cursor: not-allowed; }
+  .status-msg { font-size: 11px; color: #888; text-align: center; min-height: 16px; }
+</style>
+</head>
+<body>
+
+<!-- Navbar -->
+<nav>
+  <div class="nav-logo">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="6" cy="6" r="3"/><circle cx="18" cy="18" r="3"/>
+      <line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/>
+      <line x1="8.12" y1="8.12" x2="4" y2="4"/>
+    </svg>
+    <span>ClipForge</span>
+  </div>
+  <label class="btn-upload" for="file-input">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+      <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+    </svg>
+    上傳影片
+  </label>
+  <input type="file" id="file-input" accept="video/*" />
+</nav>
+
+<!-- Main -->
+<div class="main">
+
+  <!-- Left -->
+  <div class="left">
+
+    <!-- Video area -->
+    <div class="video-area" id="video-area">
+      <div class="empty-state" id="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
+          <rect x="2" y="2" width="20" height="20" rx="3"/>
+          <polygon points="10,8 16,12 10,16"/>
+        </svg>
+        <p>上傳 MP4 / MOV / AVI 影片</p>
+      </div>
+      <div class="video-wrapper" id="video-wrapper" style="display:none">
+        <video id="video" preload="auto"></video>
+      </div>
+      <div class="video-controls" id="video-controls" style="display:none">
+        <button class="btn-play" id="btn-play" title="播放/暫停">
+          <svg id="icon-play" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
+          <svg id="icon-pause" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+        </button>
+        <span class="time-display" id="time-display">00:00 / 00:00</span>
+        <div class="progress-bar" id="progress-bar">
+          <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Timeline -->
+    <div class="timeline-section">
+      <div class="tl-header">
+        <span class="tl-title">時間軸</span>
+        <button class="btn-add-split" id="btn-add-split" disabled>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          在目前時間新增分割點
+        </button>
+      </div>
+      <div class="tl-track">
+        <div class="tl-ruler" id="tl-ruler"></div>
+        <div class="tl-bar" id="tl-bar">
+          <div class="playhead" id="playhead" style="left:0%"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right panel -->
+  <div class="right-panel">
+    <div class="rp-header">
+      <span class="rp-title">片段列表</span>
+      <span class="seg-badge" id="seg-badge">0 段</span>
+    </div>
+    <div class="seg-list" id="seg-list">
+      <div class="empty-seg" id="empty-seg">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round">
+          <rect x="2" y="2" width="20" height="20" rx="3"/>
+          <path d="M8 12h8M12 8v8"/>
+        </svg>
+        <p>上傳影片並新增分割點<br>再點擊「裁切影片」</p>
+      </div>
+    </div>
+    <div class="rp-footer">
+      <button class="btn-split" id="btn-split" disabled>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+          <circle cx="6" cy="6" r="3"/><circle cx="18" cy="18" r="3"/>
+          <line x1="20" y1="4" x2="8.12" y2="15.88"/>
+          <line x1="14.47" y1="14.48" x2="20" y2="20"/>
+          <line x1="8.12" y1="8.12" x2="4" y2="4"/>
+        </svg>
+        裁切影片
+      </button>
+      <div class="status-msg" id="status-msg"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Frame preview tooltip -->
+<div class="frame-preview" id="frame-preview">
+  <canvas id="fp-canvas" width="160" height="90"></canvas>
+  <span class="fp-time" id="fp-time">00:00</span>
+  <span class="fp-hint">拖動調整分割點</span>
+</div>
+
+<script>
+// ── Resume-after-drag helpers ──
+let pendingResume = false;
+let pendingResumeTimer = null;
+
+function scheduleResume() {
+  pendingResume = true;
+  clearTimeout(pendingResumeTimer);
+  pendingResumeTimer = setTimeout(() => {
+    if (pendingResume && videoEl.paused) {
+      pendingResume = false;
+      videoEl.play().catch(() => {});
+    }
+  }, 150);
+}
+
+function cancelResume() {
+  pendingResume = false;
+  clearTimeout(pendingResumeTimer);
+  pendingResumeTimer = null;
+}
+
+// ── State ──
+const state = {
+  filename: null,
+  duration: 0,
+  splits: [],          // sorted seconds (between trimStart and trimEnd)
+  segments: [],        // from server after split
+  trimStart: 0,        // IN point
+  trimEnd: 0,          // OUT point
+  segmentNames: [],    // custom name per segment, aligned with segment count
+  segmentEnabled: [],  // boolean per segment, default true
+  segPlayEnd: null,    // non-null while playing a segment range
+  segPlayIdx: null,    // which segment is currently playing
+};
+
+// ── Helpers ──
+function fmtTime(s) {
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = Math.floor(s % 60);
+  if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+  return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+}
+
+// ── Elements ──
+const videoEl       = document.getElementById('video');
+const videoWrapper  = document.getElementById('video-wrapper');
+const videoControls = document.getElementById('video-controls');
+const emptyState    = document.getElementById('empty-state');
+const btnPlay       = document.getElementById('btn-play');
+const iconPlay      = document.getElementById('icon-play');
+const iconPause     = document.getElementById('icon-pause');
+const timeDisplay   = document.getElementById('time-display');
+const progressBar   = document.getElementById('progress-bar');
+const progressFill  = document.getElementById('progress-fill');
+const tlBar         = document.getElementById('tl-bar');
+const tlRuler       = document.getElementById('tl-ruler');
+const playhead      = document.getElementById('playhead');
+const btnAddSplit   = document.getElementById('btn-add-split');
+const btnSplit      = document.getElementById('btn-split');
+const segList       = document.getElementById('seg-list');
+const emptySeg      = document.getElementById('empty-seg');
+const segBadge      = document.getElementById('seg-badge');
+const statusMsg     = document.getElementById('status-msg');
+const framePreview  = document.getElementById('frame-preview');
+const fpCanvas      = document.getElementById('fp-canvas');
+const fpCtx         = fpCanvas.getContext('2d');
+const fpTime        = document.getElementById('fp-time');
+
+// ── File upload ──
+document.getElementById('file-input').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  cancelResume();      // kill any pending resume from the previous session
+  videoEl.pause();
+  setStatus('上傳中…');
+  const fd = new FormData();
+  fd.append('video', file);
+
+  const res = await fetch('/upload', { method: 'POST', body: fd });
+  if (!res.ok) { setStatus('上傳失敗'); return; }
+
+  const data = await res.json();
+  state.filename = data.filename;
+  state.duration = data.duration;
+  state.splits = [];
+  state.segments = [];
+  state.trimStart = 0;
+  state.trimEnd = data.duration;
+  state.segmentNames = ['片段 1'];
+  state.segmentEnabled = [true];
+  state.segPlayEnd = null;
+  state.segPlayIdx = null;
+
+  videoEl.src = `/video/${data.filename}`;
+  videoEl.load();
+  emptyState.style.display = 'none';
+  videoWrapper.style.display = 'flex';
+  videoControls.style.display = 'flex';
+  btnAddSplit.disabled = false;
+  btnSplit.disabled = false;
+
+  buildRuler();
+  renderTimeline();
+  renderSegmentList();
+  setStatus('影片已載入，點擊時間軸或按鈕新增分割點');
+});
+
+// ── Playback ──
+btnPlay.addEventListener('click', () => {
+  if (videoEl.paused) videoEl.play().catch(() => {}); else videoEl.pause();
+});
+videoEl.addEventListener('play',  () => { iconPlay.style.display='none'; iconPause.style.display=''; });
+videoEl.addEventListener('pause', () => { iconPlay.style.display=''; iconPause.style.display='none'; });
+videoEl.addEventListener('timeupdate', () => {
+  if (!state.duration) return;
+  const pct = videoEl.currentTime / state.duration * 100;
+  progressFill.style.width = pct + '%';
+  playhead.style.left = pct + '%';
+  timeDisplay.textContent = `${fmtTime(videoEl.currentTime)} / ${fmtTime(state.duration)}`;
+
+  // stop playback at segment end if playing a range
+  if (state.segPlayEnd !== null && videoEl.currentTime >= state.segPlayEnd) {
+    videoEl.pause();
+    state.segPlayEnd = null;
+    state.segPlayIdx = null;
+    renderSegmentList(); // reset play button icon
+  }
+});
+
+videoEl.addEventListener('pause', () => {
+  // clear segment range if paused externally
+  if (state.segPlayEnd !== null) {
+    state.segPlayEnd = null;
+    state.segPlayIdx = null;
+    renderSegmentList();
+  }
+});
+
+progressBar.addEventListener('click', (e) => {
+  if (!state.duration) return;
+  const rect = progressBar.getBoundingClientRect();
+  const pct = (e.clientX - rect.left) / rect.width;
+  videoEl.currentTime = pct * state.duration;
+});
+
+// ── Add split at current time ──
+btnAddSplit.addEventListener('click', () => {
+  addSplit(videoEl.currentTime);
+});
+
+function addSplit(t) {
+  const MIN_GAP = 1.0;
+  t = Math.max(state.trimStart + MIN_GAP, Math.min(t, state.trimEnd - MIN_GAP));
+  if (state.splits.some(s => Math.abs(s - t) < MIN_GAP)) return;
+
+  // find which segment this split falls into (for name insertion)
+  const activeBefore = state.splits.filter(s => s > state.trimStart && s < state.trimEnd && s < t).length;
+  const insertNameIdx = activeBefore + 1;
+
+  state.splits.push(t);
+  state.splits.sort((a, b) => a - b);
+  state.segments = [];
+
+  // insert a default name for the newly created right-half segment
+  const newName = `片段 ${state.segmentNames.length + 1}`;
+  state.segmentNames.splice(insertNameIdx, 0, newName);
+  state.segmentEnabled.splice(insertNameIdx, 0, true);
+
+  renderTimeline();
+  renderSegmentList();
+}
+
+// ── Click on timeline to add split ──
+tlBar.addEventListener('click', (e) => {
+  if (!state.duration || e.target.classList.contains('split-marker')) return;
+  const rect = tlBar.getBoundingClientRect();
+  const t = ((e.clientX - rect.left) / rect.width) * state.duration;
+  addSplit(t);
+});
+
+// ── Ruler ──
+function buildRuler() {
+  tlRuler.innerHTML = '';
+  const d = state.duration;
+  const step = pickStep(d);
+  for (let t = 0; t <= d; t += step) {
+    const span = document.createElement('span');
+    span.textContent = fmtTime(t);
+    span.style.left = (t / d * 100) + '%';
+    tlRuler.appendChild(span);
+  }
+}
+function pickStep(d) {
+  if (d <= 60)   return 5;
+  if (d <= 300)  return 30;
+  if (d <= 600)  return 60;
+  if (d <= 3600) return 300;
+  return 600;
+}
+
+// ── Render timeline ──
+const SEG_COLORS = [
+  ['#4f46e5','#6366f1'], ['#7c3aed','#8b5cf6'], ['#2563eb','#3b82f6'],
+  ['#059669','#10b981'], ['#d97706','#f59e0b'], ['#dc2626','#ef4444'],
+];
+
+function renderTimeline() {
+  tlBar.querySelectorAll('.split-marker,.seg-region,.trim-handle,.trim-exclude').forEach(el => el.remove());
+
+  const d = state.duration;
+  const { trimStart: ts, trimEnd: te } = state;
+  const activeSplits = state.splits.filter(t => t > ts && t < te);
+  const times = [ts, ...activeSplits, te];
+
+  // draw segment colours (only within trim range)
+  for (let i = 0; i < times.length - 1; i++) {
+    const left  = times[i]   / d * 100;
+    const width = (times[i+1] - times[i]) / d * 100;
+    const [c1, c2] = SEG_COLORS[i % SEG_COLORS.length];
+    const seg = document.createElement('div');
+    seg.className = 'seg-region';
+    seg.style.left  = left  + '%';
+    seg.style.width = width + '%';
+    seg.style.background = `linear-gradient(90deg, ${c1}, ${c2})`;
+    seg.style.opacity = state.segmentEnabled[i] === false ? '0.15' : '0.55';
+    tlBar.appendChild(seg);
+  }
+
+  // excluded zones (before IN and after OUT)
+  if (ts > 0) {
+    const ex = document.createElement('div');
+    ex.className = 'trim-exclude';
+    ex.style.left = '0';
+    ex.style.width = (ts / d * 100) + '%';
+    tlBar.appendChild(ex);
+  }
+  if (te < d) {
+    const ex = document.createElement('div');
+    ex.className = 'trim-exclude';
+    ex.style.left  = (te / d * 100) + '%';
+    ex.style.width = ((d - te) / d * 100) + '%';
+    tlBar.appendChild(ex);
+  }
+
+  // draw split markers (within active range)
+  activeSplits.forEach((t, idx) => {
+    const realIdx = state.splits.indexOf(t);
+    const marker = document.createElement('div');
+    marker.className = 'split-marker';
+    marker.style.left = (t / d * 100) + '%';
+    marker.title = '拖動調整 • 點 ✕ 刪除';
+
+    const xBtn = document.createElement('button');
+    xBtn.className = 'split-marker-x';
+    xBtn.textContent = '✕';
+    xBtn.title = '刪除此分割點';
+    xBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      // idx is position in activeSplits → boundary between segment idx and idx+1
+      state.segmentNames.splice(idx + 1, 1);
+      state.segmentEnabled.splice(idx + 1, 1);
+      state.splits.splice(realIdx, 1);
+      state.segments = [];
+      renderTimeline();
+      renderSegmentList();
+    });
+    marker.appendChild(xBtn);
+    makeDraggable(marker, realIdx);
+    tlBar.appendChild(marker);
+  });
+
+  // IN handle
+  const inHandle = document.createElement('div');
+  inHandle.className = 'trim-handle trim-in';
+  inHandle.style.left = (ts / d * 100) + '%';
+  inHandle.dataset.label = 'IN';
+  makeTrimDraggable(inHandle, 'in');
+  tlBar.appendChild(inHandle);
+
+  // OUT handle
+  const outHandle = document.createElement('div');
+  outHandle.className = 'trim-handle trim-out';
+  outHandle.style.left = (te / d * 100) + '%';
+  outHandle.dataset.label = 'OUT';
+  makeTrimDraggable(outHandle, 'out');
+  tlBar.appendChild(outHandle);
+
+  const segCount = times.length - 1;
+  segBadge.textContent = `${segCount} 段`;
+}
+
+// ── Lightweight segment colour update (used during drag) ──
+function updateSegmentColors() {
+  tlBar.querySelectorAll('.seg-region').forEach(el => el.remove());
+  const d = state.duration;
+  const activeSplits = state.splits.filter(t => t > state.trimStart && t < state.trimEnd);
+  const times = [state.trimStart, ...activeSplits, state.trimEnd];
+  const firstSplit = tlBar.querySelector('.split-marker, .trim-handle, .trim-exclude, .playhead');
+  for (let i = 0; i < times.length - 1; i++) {
+    const left  = times[i]   / d * 100;
+    const width = (times[i+1] - times[i]) / d * 100;
+    const [c1, c2] = SEG_COLORS[i % SEG_COLORS.length];
+    const seg = document.createElement('div');
+    seg.className = 'seg-region';
+    seg.style.left  = left + '%';
+    seg.style.width = width + '%';
+    seg.style.background = `linear-gradient(90deg, ${c1}, ${c2})`;
+    seg.style.opacity = state.segmentEnabled[i] === false ? '0.15' : '0.55';
+    firstSplit ? tlBar.insertBefore(seg, firstSplit) : tlBar.appendChild(seg);
+  }
+}
+
+// ── Drag split markers ──
+function makeDraggable(marker, idx) {
+  let dragging = false;
+  let wasPlaying = false;
+
+  marker.addEventListener('mousedown', (e) => {
+    if (e.target.classList.contains('split-marker-x')) return;
+    e.preventDefault();
+    dragging = true;
+    wasPlaying = !videoEl.paused;
+    videoEl.pause();                   // always pause unconditionally
+    marker.classList.add('dragging');
+    framePreview.style.display = 'flex';
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+
+  function onMove(e) {
+    if (!dragging) return;
+    const rect = tlBar.getBoundingClientRect();
+    let pct = (e.clientX - rect.left) / rect.width;
+    pct = Math.max(0.001, Math.min(0.999, pct));
+    let t = pct * state.duration;
+
+    const MIN_GAP = 1.0;
+    const prevSplit = idx > 0 ? state.splits[idx - 1] + MIN_GAP : state.trimStart + MIN_GAP;
+    const nextSplit = idx < state.splits.length - 1 ? state.splits[idx + 1] - MIN_GAP : state.trimEnd - MIN_GAP;
+    t = Math.max(prevSplit, Math.min(nextSplit, t));
+
+    state.splits[idx] = t;
+    marker.style.left = (t / state.duration * 100) + '%';
+    updateSegmentColors();
+    if (!videoEl.paused) videoEl.pause(); // guard: ensure paused before every seek
+    videoEl.currentTime = t;
+    showFramePreview(e.clientX, e.clientY, t);
+  }
+
+  function onUp() {
+    if (!dragging) return;
+    dragging = false;
+    marker.classList.remove('dragging');
+    framePreview.style.display = 'none';
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    if (wasPlaying) scheduleResume();
+    renderTimeline();
+    renderSegmentList();
+  }
+}
+
+// ── Drag trim IN / OUT handles ──
+function makeTrimDraggable(handle, type) {
+  let dragging = false;
+  let wasPlaying = false;
+
+  handle.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragging = true;
+    wasPlaying = !videoEl.paused;
+    videoEl.pause();                   // always pause unconditionally
+    framePreview.style.display = 'flex';
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+
+  function onMove(e) {
+    if (!dragging) return;
+    const rect = tlBar.getBoundingClientRect();
+    let pct = (e.clientX - rect.left) / rect.width;
+    pct = Math.max(0, Math.min(1, pct));
+    let t = pct * state.duration;
+
+    const MIN_GAP = 1.0;
+    if (type === 'in') {
+      const maxIn = state.splits.length > 0 ? state.splits[0] - MIN_GAP : state.trimEnd - MIN_GAP;
+      t = Math.max(0, Math.min(maxIn, t));
+      state.trimStart = t;
+      handle.style.left = (t / state.duration * 100) + '%';
+    } else {
+      const minOut = state.splits.length > 0
+        ? state.splits[state.splits.length - 1] + MIN_GAP
+        : state.trimStart + MIN_GAP;
+      t = Math.max(minOut, Math.min(state.duration, t));
+      state.trimEnd = t;
+      handle.style.left = (t / state.duration * 100) + '%';
+    }
+
+    // update exclude zones live
+    tlBar.querySelectorAll('.trim-exclude').forEach(el => el.remove());
+    const d = state.duration;
+    if (state.trimStart > 0) {
+      const ex = document.createElement('div');
+      ex.className = 'trim-exclude';
+      ex.style.left = '0'; ex.style.width = (state.trimStart / d * 100) + '%';
+      tlBar.appendChild(ex);
+    }
+    if (state.trimEnd < d) {
+      const ex = document.createElement('div');
+      ex.className = 'trim-exclude';
+      ex.style.left  = (state.trimEnd / d * 100) + '%';
+      ex.style.width = ((d - state.trimEnd) / d * 100) + '%';
+      tlBar.appendChild(ex);
+    }
+    updateSegmentColors();
+    if (!videoEl.paused) videoEl.pause();
+    videoEl.currentTime = t;
+    showFramePreview(e.clientX, e.clientY, t);
+  }
+
+  function onUp() {
+    if (!dragging) return;
+    dragging = false;
+    framePreview.style.display = 'none';
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    if (wasPlaying) scheduleResume();
+    state.segments = [];
+    renderTimeline();
+    renderSegmentList();
+  }
+}
+
+// ── Frame preview ──
+videoEl.addEventListener('seeked', () => {
+  if (framePreview.style.display !== 'none') {
+    fpCtx.drawImage(videoEl, 0, 0, fpCanvas.width, fpCanvas.height);
+  }
+  if (pendingResume) {
+    cancelResume();
+    videoEl.play().catch(() => {});
+  }
+});
+
+function showFramePreview(mx, my, t) {
+  fpTime.textContent = fmtTime(t);
+  const w = 176, h = 160;
+  let x = mx - w / 2;
+  let y = my - h - 18;
+  if (y < 4) y = my + 20;
+  if (x < 4) x = 4;
+  if (x + w > window.innerWidth - 4) x = window.innerWidth - w - 4;
+  framePreview.style.left = x + 'px';
+  framePreview.style.top  = y + 'px';
+  fpCtx.drawImage(videoEl, 0, 0, fpCanvas.width, fpCanvas.height);
+}
+
+// ── Render segment list (before split) ──
+function renderSegmentList() {
+  segList.innerHTML = '';
+  if (!state.duration) { segList.appendChild(emptySeg); return; }
+
+  const { trimStart: ts, trimEnd: te } = state;
+  const activeSplits = state.splits.filter(t => t > ts && t < te);
+  const times = [ts, ...activeSplits, te];
+
+  if (times.length - 1 === 1 && state.segments.length === 0) {
+    const div = document.createElement('div');
+    div.className = 'empty-seg';
+    div.innerHTML = '<p style="color:#666">新增分割點後可裁切多個片段</p>';
+    segList.appendChild(div);
+    return;
+  }
+
+  const cards = state.segments.length > 0 ? state.segments : null;
+
+  for (let i = 0; i < times.length - 1; i++) {
+    const start = times[i], end = times[i + 1];
+    const dur = end - start;
+    const [c1] = SEG_COLORS[i % SEG_COLORS.length];
+
+    // ensure arrays are long enough
+    if (!state.segmentNames[i])   state.segmentNames[i]   = `片段 ${i + 1}`;
+    if (state.segmentEnabled[i] === undefined) state.segmentEnabled[i] = true;
+
+    const enabled = state.segmentEnabled[i] !== false;
+    const isPlayingThis = state.segPlayIdx === i;
+
+    const card = document.createElement('div');
+    card.className = 'seg-card' + (enabled ? '' : ' seg-disabled');
+
+    // top row: number + toggle
+    const cardTop = document.createElement('div');
+    cardTop.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;';
+
+    // number badge
+    const num = document.createElement('div');
+    num.className = 'seg-num';
+    num.style.background = c1;
+    num.textContent = i + 1;
+
+    // toggle switch
+    const toggleWrap = document.createElement('label');
+    toggleWrap.className = 'seg-toggle';
+    toggleWrap.title = enabled ? '點擊停用此片段' : '點擊啟用此片段';
+    const toggleInput = document.createElement('input');
+    toggleInput.type = 'checkbox';
+    toggleInput.checked = enabled;
+    toggleInput.addEventListener('change', () => {
+      state.segmentEnabled[i] = toggleInput.checked;
+      state.segments = [];
+      renderTimeline();
+      renderSegmentList();
+    });
+    const toggleSlider = document.createElement('span');
+    toggleSlider.className = 'seg-toggle-slider';
+    toggleWrap.appendChild(toggleInput);
+    toggleWrap.appendChild(toggleSlider);
+
+    cardTop.appendChild(num);
+    cardTop.appendChild(toggleWrap);
+
+    // info column: editable name + time/duration
+    const info = document.createElement('div');
+    info.className = 'seg-info';
+
+    const nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.className = 'seg-name-input';
+    nameInput.value = state.segmentNames[i];
+    nameInput.placeholder = `片段 ${i + 1}`;
+    nameInput.addEventListener('input', () => {
+      state.segmentNames[i] = nameInput.value || `片段 ${i + 1}`;
+      state.segments = []; // names changed → need re-split for correct filenames
+    });
+    nameInput.addEventListener('mousedown', e => e.stopPropagation());
+
+    const timeRow = document.createElement('div');
+    timeRow.className = 'seg-time';
+    timeRow.textContent = `${fmtTime(start)} → ${fmtTime(end)}`;
+
+    const durRow = document.createElement('div');
+    durRow.className = 'seg-dur';
+    durRow.style.color = c1;
+    durRow.textContent = `時長：${fmtTime(dur)}`;
+
+    info.appendChild(nameInput);
+    info.appendChild(timeRow);
+    info.appendChild(durRow);
+
+    // action buttons
+    const actions = document.createElement('div');
+    actions.style.cssText = 'display:flex;flex-direction:column;gap:4px;flex-shrink:0;';
+
+    // play segment button
+    const playBtn = document.createElement('button');
+    playBtn.className = 'btn-seg-play' + (isPlayingThis ? ' playing' : '');
+    playBtn.title = isPlayingThis ? '停止片段播放' : '僅播放此片段';
+    playBtn.innerHTML = isPlayingThis
+      ? `<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>`
+      : `<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>`;
+    playBtn.addEventListener('click', () => {
+      if (isPlayingThis) {
+        videoEl.pause();
+      } else {
+        state.segPlayEnd = end;
+        state.segPlayIdx = i;
+        videoEl.currentTime = start;
+        videoEl.play().catch(() => {});
+        renderSegmentList();
+      }
+    });
+    actions.appendChild(playBtn);
+
+    // delete split button
+    if (activeSplits.length > 0) {
+      const delBtn = document.createElement('button');
+      delBtn.className = 'btn-del-seg';
+      delBtn.title = i < activeSplits.length ? '刪除後方分割點（與下一段合併）' : '刪除前方分割點（與上一段合併）';
+      delBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
+      delBtn.addEventListener('click', () => {
+        const splitToRemove = i < activeSplits.length ? activeSplits[i] : activeSplits[i - 1];
+        const splitIdx = state.splits.indexOf(splitToRemove);
+        if (splitIdx !== -1) state.splits.splice(splitIdx, 1);
+        const nameIdxToRemove = i < activeSplits.length ? i + 1 : i;
+        state.segmentNames.splice(nameIdxToRemove, 1);
+        state.segmentEnabled.splice(nameIdxToRemove, 1);
+        state.segments = [];
+        renderTimeline();
+        renderSegmentList();
+      });
+      actions.appendChild(delBtn);
+    }
+
+    // download button — only active when this segment was processed (filename not null)
+    const cardResult = cards && cards[i];
+    const hasFile = cardResult && cardResult.filename;
+    const dl = document.createElement('button');
+    dl.className = 'btn-dl';
+    dl.disabled = !hasFile;
+    dl.title = hasFile ? '下載片段' : (enabled ? '裁切後可下載' : '此片段已停用');
+    dl.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`;
+    if (hasFile) {
+      dl.addEventListener('click', () => { window.location = `/output/${cardResult.filename}`; });
+    }
+    actions.appendChild(dl);
+
+    card.style.flexDirection = 'column';
+    card.style.gap = '0';
+    card.appendChild(cardTop);
+    const cardBody = document.createElement('div');
+    cardBody.style.cssText = 'display:flex;align-items:center;gap:10px;';
+    cardBody.appendChild(info);
+    cardBody.appendChild(actions);
+    card.appendChild(cardBody);
+    segList.appendChild(card);
+  }
+}
+
+// ── Split video ──
+btnSplit.addEventListener('click', async () => {
+  if (!state.filename) return;
+  btnSplit.disabled = true;
+  setStatus('裁切中，請稍候…');
+
+  const res = await fetch('/split', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      filename: state.filename,
+      splits: state.splits.filter(t => t > state.trimStart && t < state.trimEnd),
+      trimStart: state.trimStart,
+      trimEnd: state.trimEnd,
+      names: state.segmentNames,
+      enabled: state.segmentEnabled,
+    }),
+  });
+
+  if (!res.ok) { setStatus('裁切失敗'); btnSplit.disabled = false; return; }
+  const data = await res.json();
+  state.segments = data.segments;
+
+  const totalMB = (data.segments.reduce((s, x) => s + x.size, 0) / 1024 / 1024).toFixed(1);
+  setStatus(`✅ 完成！共 ${data.segments.length} 個片段，總計 ${totalMB} MB`);
+  btnSplit.disabled = false;
+  renderSegmentList();
+});
+
+function setStatus(msg) { statusMsg.textContent = msg; }
+</script>
+</body>
+</html>

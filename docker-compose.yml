@@ -1,0 +1,37 @@
+services:
+  video-splitter:
+    build: .
+    ports:
+      - "6621:5000"
+    volumes:
+      # ── 目前：使用 Docker named volume（Windows / Ubuntu 通用）──────────────
+      # 資料儲存在 Docker 管理的虛擬磁碟，不直接對應到主機資料夾。
+      # 優點：跨平台相容、效能佳；缺點：無法直接用檔案總管/ls 查看。
+      - uploads:/app/uploads
+      - outputs:/app/outputs
+
+      # ── Windows：改掛到本機資料夾（擇一取消註解）────────────────────────────
+      # 格式：- "C:/Users/<你的帳號>/path/to/folder:/app/uploads"
+      # 注意：反斜線 \ 須改為正斜線 /，路徑含空格時整行需加雙引號。
+      #
+      # - "C:/Users/acer1/Desktop/ITRI/20260511/Video split/uploads:/app/uploads"
+      # - "C:/Users/acer1/Desktop/ITRI/20260511/Video split/outputs:/app/outputs"
+
+      # ── Ubuntu / Linux / macOS：改掛到本機資料夾（擇一取消註解）─────────────
+      # 格式：- /home/<你的帳號>/path/to/folder:/app/uploads
+      # 也可用相對路徑（相對於 docker-compose.yml 所在目錄）：
+      # 格式：- ./uploads:/app/uploads
+      #
+      # - /home/user/video-split/uploads:/app/uploads
+      # - /home/user/video-split/outputs:/app/outputs
+      # 或相對路徑：
+      # - ./uploads:/app/uploads
+      # - ./outputs:/app/outputs
+
+    restart: unless-stopped
+
+# ── Named volumes 定義（使用 named volume 時必須保留此區塊）─────────────────
+# 若改用本機路徑 bind mount，可將此區塊整個刪除。
+volumes:
+  uploads:
+  outputs:
