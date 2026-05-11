@@ -9,6 +9,10 @@
 
 ---
 
+![ClipForge Screenshot](screencapture/main.png)
+
+---
+
 ## ✨ Features
 
 ### Video Upload & Preview
@@ -162,6 +166,10 @@ ClipForge/
 # ClipForge（中文說明）
 
 > 輕量級網頁影片分割工具 — 上傳影片、在互動時間軸上標記分割點、為每個片段命名，最後下載輸出結果。
+
+---
+
+![ClipForge 截圖](screencapture/main.png)
 
 ---
 
