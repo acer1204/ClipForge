@@ -540,6 +540,25 @@
 </div>
 
 <script>
+// ── RAF-throttled seek (prevents seek-flood that stops seeked from firing) ──
+let seekTargetTime = null;
+let seekRafId = null;
+
+function scheduledSeek(t) {
+  seekTargetTime = t;
+  if (seekRafId !== null) return;        // already queued for next frame
+  seekRafId = requestAnimationFrame(() => {
+    seekRafId = null;
+    if (!videoEl.paused) videoEl.pause();
+    videoEl.currentTime = seekTargetTime;
+  });
+}
+
+function cancelScheduledSeek() {
+  if (seekRafId !== null) { cancelAnimationFrame(seekRafId); seekRafId = null; }
+  seekTargetTime = null;
+}
+
 // ── Resume-after-drag helpers ──
 let pendingResume = false;
 let pendingResumeTimer = null;
@@ -886,8 +905,7 @@ function makeDraggable(marker, idx) {
     state.splits[idx] = t;
     marker.style.left = (t / state.duration * 100) + '%';
     updateSegmentColors();
-    if (!videoEl.paused) videoEl.pause(); // guard: ensure paused before every seek
-    videoEl.currentTime = t;
+    scheduledSeek(t);
     showFramePreview(e.clientX, e.clientY, t);
   }
 
@@ -898,6 +916,7 @@ function makeDraggable(marker, idx) {
     framePreview.style.display = 'none';
     document.removeEventListener('mousemove', onMove);
     document.removeEventListener('mouseup', onUp);
+    cancelScheduledSeek();
     if (wasPlaying) scheduleResume();
     renderTimeline();
     renderSegmentList();
@@ -959,8 +978,7 @@ function makeTrimDraggable(handle, type) {
       tlBar.appendChild(ex);
     }
     updateSegmentColors();
-    if (!videoEl.paused) videoEl.pause();
-    videoEl.currentTime = t;
+    scheduledSeek(t);
     showFramePreview(e.clientX, e.clientY, t);
   }
 
@@ -970,6 +988,7 @@ function makeTrimDraggable(handle, type) {
     framePreview.style.display = 'none';
     document.removeEventListener('mousemove', onMove);
     document.removeEventListener('mouseup', onUp);
+    cancelScheduledSeek();
     if (wasPlaying) scheduleResume();
     state.segments = [];
     renderTimeline();
@@ -998,7 +1017,7 @@ function showFramePreview(mx, my, t) {
   if (x + w > window.innerWidth - 4) x = window.innerWidth - w - 4;
   framePreview.style.left = x + 'px';
   framePreview.style.top  = y + 'px';
-  fpCtx.drawImage(videoEl, 0, 0, fpCanvas.width, fpCanvas.height);
+  // frame is drawn by the seeked handler once the seek actually completes
 }
 
 // ── Render segment list (before split) ──
